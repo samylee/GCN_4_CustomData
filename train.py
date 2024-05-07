@@ -14,7 +14,7 @@ from torch_geometric.nn import TopKPooling, SAGEConv
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 
 
-class Net(torch.nn.Module):  # 针对图进行分类任务
+class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         embed_dim = 128
@@ -36,65 +36,42 @@ class Net(torch.nn.Module):  # 针对图进行分类任务
         self.act2 = torch.nn.ReLU()
 
     def forward(self, data):
-        x, edge_index, batch = data.x, data.edge_index, data.batch  # x:n*1,其中每个图里点的个数是不同的
-        # print(x)
-        x = self.item_embedding(x)  # n*1*128 特征编码后的结果
-        # print('item_embedding',x.shape)
-        x = x.squeeze(1)  # n*128
-        # print('squeeze',x.shape)
-        x = F.relu(self.conv1(x, edge_index))  # n*128
-        # print('conv1',x.shape)
-        x, edge_index, _, batch, _, _ = self.pool1(x, edge_index, None, batch)  # pool之后得到 n*0.8个点
-        # print('self.pool1',x.shape)
-        # print('self.pool1',edge_index)
-        # print('self.pool1',batch)
-        # x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = self.item_embedding(x)
+        x = x.squeeze(1)
+        x = F.relu(self.conv1(x, edge_index))
+        x, edge_index, _, batch, _, _ = self.pool1(x, edge_index, None, batch)
         x1 = gap(x, batch)
-        # print('gmp',gmp(x, batch).shape) # batch*128
-        # print('cat',x1.shape) # batch*256
         x = F.relu(self.conv2(x, edge_index))
-        # print('conv2',x.shape)
         x, edge_index, _, batch, _, _ = self.pool2(x, edge_index, None, batch)
-        # print('pool2',x.shape)
-        # print('pool2',edge_index)
-        # print('pool2',batch)
-        # x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
         x2 = gap(x, batch)
-        # print('x2',x2.shape)
         x = F.relu(self.conv3(x, edge_index))
-        # print('conv3',x.shape)
         x, edge_index, _, batch, _, _ = self.pool3(x, edge_index, None, batch)
-        # print('pool3',x.shape)
         # x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
         x3 = gap(x, batch)
-        # print('x3',x3.shape)# batch * 256
-        x = x1 + x2 + x3  # 获取不同尺度的全局特征
+        x = x1 + x2 + x3
 
         x = self.lin1(x)
-        # print('lin1',x.shape)
         x = self.act1(x)
         x = self.lin2(x)
-        # print('lin2',x.shape)
         x = self.act2(x)
         x = F.dropout(x, p=0.5, training=self.training)
 
-        x = torch.sigmoid(self.lin3(x)).squeeze(1)  # batch个结果
-        # print('sigmoid',x.shape)
+        x = torch.sigmoid(self.lin3(x)).squeeze(1)
         return x
 
 
 class YooChooseBinaryDataset(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None):
-        super(YooChooseBinaryDataset, self).__init__(root, transform, pre_transform)  # transform就是数据增强，对每一个数据都执行
+        super(YooChooseBinaryDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
-    def raw_file_names(self):  # 检查self.raw_dir目录下是否存在raw_file_names()属性方法返回的每个文件
-        # 如有文件不存在，则调用download()方法执行原始文件下载
+    def raw_file_names(self):
         return []
 
     @property
-    def processed_file_names(self):  # 检查self.processed_dir目录下是否存在self.processed_file_names属性方法返回的所有文件，没有就会走process
+    def processed_file_names(self):
         return ['yoochoose_click_binary_1M_sess.dataset']
 
     def download(self):
@@ -117,8 +94,6 @@ class YooChooseBinaryDataset(InMemoryDataset):
 
         df['label'] = df.session_id.isin(buy_df.session_id)
         df.head()
-
-        print(df.item_id.max())
 
         data_list = []
 
